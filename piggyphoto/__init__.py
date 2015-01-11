@@ -53,6 +53,15 @@ typedef struct {
         char folder [1024];
 } CameraFilePath;
 """
+
+class Widget(object):
+    def __init__(self):
+        self._w = ctypes.c_void_p()
+
+    def set_value(self,value):
+        check(gp.gp_widget_set_value(self._w,str(value)))
+
+
 class CameraFilePath(ctypes.Structure):
     _fields_ = [('name', (ctypes.c_char * 128)),
                 ('folder', (ctypes.c_char * 1024))]
@@ -360,6 +369,55 @@ class camera(object):
         self._list_config(cfg, cfglist, cfg.name)
         return cfglist
 
+    def _get_config_value(self, widget, cfgdict, path):
+       children = widget.children
+       if children:
+           for c in children:
+               self._get_config_value(c, cfgdict, path + "." + c.name)
+       else:
+            cfgdict[path] = widget.value
+
+    def get_config(self, name=None):
+        cfgdict = {}
+        cfg = self.config
+        self._get_config_value(cfg, cfgdict, cfg.name)
+        if name:
+            return cfgdict.get(name, None)
+        else:
+            return cfgdict
+
+
+    def _retrieve_widget(self, parent, name):
+        child = Widget()
+        ret = gp.gp_widget_get_child_by_name(parent._w,str(name),PTR(child._w))
+        if(ret != 0):
+            check(gp.gp_widget_get_child_by_label(parent._w,str(name),PTR(child._w)))
+        return child;
+
+    def set_config(self, name, value):
+        main = Widget()
+        check(gp.gp_camera_get_config(self._cam,PTR(main._w),context))
+        tokens = name.split('.')
+        parent = main
+        child = None
+        for token in tokens:
+            child = self._retrieve_widget(parent,token)
+            parent = child
+        child.set_value(value)
+        check(gp.gp_camera_set_config(self._cam,main._w,context))
+
+
+    def get_config_choices(self, name):
+        tokens = name.split('.')
+        config=self.config
+        for token in tokens:
+            config = config.get_child_by_name(token)
+        count = config.count_choices(0)
+        choices = []
+        for i in range(0, count):
+            choices.append(config.get_choice(i))
+        return choices
+
     def ptp_canon_eos_requestdevicepropvalue(self, prop):
         params = ctypes.c_void_p(self._cam.value + 12)
         gp.ptp_generic_no_data(params, PTP_OC_CANON_EOS_RequestDevicePropValue, 1, prop)
@@ -652,7 +710,7 @@ class cameraWidget(object):
         if self.type in [GP_WIDGET_MENU, GP_WIDGET_RADIO, GP_WIDGET_TEXT]:
             value = ctypes.cast(value.value, ctypes.c_char_p)
         elif self.type == GP_WIDGET_RANGE:
-            value = ctypes.cast(value.value, ctypes.c_float_p)
+            value = ctypes.cast(value.value, ctypes.c_void_p)
         elif self.type in [GP_WIDGET_TOGGLE, GP_WIDGET_DATE]:
             #value = ctypes.cast(value.value, ctypes.c_int_p)
             pass
@@ -743,7 +801,7 @@ class cameraWidget(object):
 
     def get_choice(self, choice_number):
         choice = ctypes.c_char_p()
-        check(gp.gp_widget_add_choice(self._w, int(choice_number), PTR(choice)))
+        check(gp.gp_widget_get_choice(self._w, int(choice_number), PTR(choice)))
         return choice.value
 
     def createdoc(self):
