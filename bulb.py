@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from pprint import pprint
 import piggyphoto as pp
 import os

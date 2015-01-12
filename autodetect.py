@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import piggyphoto as pp
 
 print "libgphoto2 version:"
