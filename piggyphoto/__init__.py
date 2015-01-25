@@ -388,14 +388,14 @@ class camera(object):
 
 
     def _retrieve_widget(self, parent, name):
-        child = Widget()
+        child = cameraWidget()
         ret = gp.gp_widget_get_child_by_name(parent._w,str(name),PTR(child._w))
         if(ret != 0):
             check(gp.gp_widget_get_child_by_label(parent._w,str(name),PTR(child._w)))
         return child;
 
     def set_config(self, name, value):
-        main = Widget()
+        main = cameraWidget()
         check(gp.gp_camera_get_config(self._cam,PTR(main._w),context))
         tokens = name.split('.')
         parent = main
@@ -403,7 +403,9 @@ class camera(object):
         for token in tokens:
             child = self._retrieve_widget(parent,token)
             parent = child
-        child.set_value(value)
+        print child, dir(child._w), child._w._type_
+        
+        child.value = value
         check(gp.gp_camera_set_config(self._cam,main._w,context))
 
 
@@ -719,8 +721,10 @@ class cameraWidget(object):
         check(ans)
         return value.value
     def _set_value(self, value):
-        if self.type in (GP_WIDGET_MENU, GP_WIDGET_RADIO, GP_WIDGET_TEXT):
+        if self.type in (GP_WIDGET_MENU, GP_WIDGET_TEXT):
             value = ctypes.c_char_p(value)
+        elif self.type == GP_WIDGET_RADIO:
+            value = self.get_choice(value)
         elif self.type == GP_WIDGET_RANGE:
             value = ctypes.c_float_p(value) # this line not tested
         elif self.type in (GP_WIDGET_TOGGLE, GP_WIDGET_DATE):

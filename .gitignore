@@ -8,3 +8,4 @@ build/
 *.prof
 *.html
 *.jpg
+*DS_Store
