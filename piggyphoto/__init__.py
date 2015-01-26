@@ -292,6 +292,7 @@ class camera(object):
         check(gp.gp_camera_get_config(self._cam, PTR(window._w), context))
         window.populate_children()
         return window
+
     def _set_config(self, window):
         check(gp.gp_camera_set_config(self._cam, window._w, context))
     config = property(_get_config, _set_config)
@@ -377,22 +378,22 @@ class camera(object):
        else:
             cfgdict[path] = widget.value
 
-    def get_config(self, name=None):
-        cfgdict = {}
-        cfg = self.config
-        self._get_config_value(cfg, cfgdict, cfg.name)
-        if name:
-            return cfgdict.get(name, None)
-        else:
-            return cfgdict
-
-
-    def _retrieve_widget(self, parent, name):
-        child = cameraWidget()
-        ret = gp.gp_widget_get_child_by_name(parent._w,str(name),PTR(child._w))
-        if(ret != 0):
-            check(gp.gp_widget_get_child_by_label(parent._w,str(name),PTR(child._w)))
-        return child;
+    def get_config(self, name):
+        root = cameraWidget()
+        check(gp.gp_camera_get_config(self._cam,PTR(root._w),context))
+        tokens = name.split('.')
+        parent = root
+        for token in tokens:
+            child = parent.get_child_by_name(token)
+            if not child:
+                child = parent.get_child_by_label(token)
+            if not child:
+                child.unref()
+                return None
+        parent = child
+        value = str(child.value)
+        root.unref()
+        return value
 
     def set_config(self, name, value):
         main = cameraWidget()
@@ -401,12 +402,15 @@ class camera(object):
         parent = main
         child = None
         for token in tokens:
-            child = self._retrieve_widget(parent,token)
-            parent = child
-        print child, dir(child._w), child._w._type_
-        
+            child = parent.get_child_by_name(token)
+            if not child:
+                child = parent.get_child_by_label(token)
+            if not child:
+                child.unref()
+                return None
         child.value = value
         check(gp.gp_camera_set_config(self._cam,main._w,context))
+        main.unref()
 
 
     def get_config_choices(self, name):
@@ -649,7 +653,7 @@ class cameraWidget(object):
     def __del__(self):
         # TODO fix this or find a good reason not to
         #print "widget(%s) __del__" % self.name
-        #check(gp.gp_widget_unref(self._w))
+        # check(gp.gp_widget_unref(self._w))
         pass
 
     def _get_info(self):
