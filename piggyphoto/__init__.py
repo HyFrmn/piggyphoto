@@ -110,6 +110,11 @@ GP_PORT_NONE = 0
 GP_PORT_SERIAL = 1
 GP_PORT_USB = 2
 
+GP_EVENT_UNKNOWN = 0 #unknown and unhandled event
+GP_EVENT_TIMEOUT = 1 #timeout, no arguments
+GP_EVENT_FILE_ADDED = 2 #CameraFilePath* = file path on camfs
+GP_EVENT_FOLDER_ADDED = 3 #CameraFilePath* = folder on camfs
+GP_EVENT_CAPTURE_COMPLETE = 4 #last capture is complete
 
 class CameraAbilities(ctypes.Structure):
     _fields_ = [('model', (ctypes.c_char * 128)),
@@ -343,7 +348,13 @@ class camera(object):
         check(gp.gp_camera_trigger_capture(self._cam, context))
 
     def wait_for_event(self, timeout):
-        raise NotImplementedError
+        eventtype = ctypes.c_int()
+        path = PTR(CameraFilePath())
+        check(gp.gp_camera_wait_for_event(self._cam, timeout, PTR(eventtype), ctypes.byref(path), context))
+        if path:
+            path = path.contents
+        return eventtype.value, path
+        
 
     def list_folders(self, path = "/"):
         l = cameraList()
